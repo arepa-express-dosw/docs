@@ -136,3 +136,4 @@ Se generaría una inconsistencia de estado (*dual-write problem*): el cliente re
 - **pedidos-service:** [https://github.com/arepa-express-dosw/pedidos-service](https://github.com/arepa-express-dosw/pedidos-service)
 - **cocina-service:** [https://github.com/arepa-express-dosw/cocina-service](https://github.com/arepa-express-dosw/cocina-service)
 - **notificaciones-service:** [https://github.com/arepa-express-dosw/notificaciones-service](https://github.com/arepa-express-dosw/notificaciones-service)
+

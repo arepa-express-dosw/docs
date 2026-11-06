@@ -17,3 +17,4 @@ docs/
 - [pedidos-service](https://github.com/arepa-express-dosw/pedidos-service): Recepción de pedidos y publicación de eventos (`POST /pedidos`).
 - [cocina-service](https://github.com/arepa-express-dosw/cocina-service): Consumidor asíncrono (`cocina.pedidos`).
 - [notificaciones-service](https://github.com/arepa-express-dosw/notificaciones-service): Consumidor asíncrono (`notificaciones.pedidos`).
+
