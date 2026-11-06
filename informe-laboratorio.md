@@ -88,22 +88,21 @@ El cliente recibe de inmediato la respuesta `201 Created` (`{"pedidoId":"d622317
 
 ## 4. Experimentos
 
-### Experimento 1: Uno a muchos
-- **Observación:** Al emitir un solo evento `pedido.creado`, este se duplicó hacia las colas independientes `cocina.pedidos` y `notificaciones.pedidos`. Ambos servicios recibieron el mensaje completo simultáneamente.
-- **Análisis:** Si ambos servicios compartieran una única cola, RabbitMQ balancearía los mensajes en modo round-robin, haciendo que un pedido solo lo reciba la cocina o la notificación, pero no ambos.
+### Experimento 1: Uno a muchos (Publish / Subscribe)
+- **Configuración:** Un único evento `pedido.creado` publicado en el Topic Exchange `arepas.eventos`.
+- **Resultado:** El exchange enrutó copias independientes del mensaje a las dos colas vinculadas: `cocina.pedidos` (binding `pedido.*`) y `notificaciones.pedidos` (binding `pedido.creado`). Ambos microservicios procesaron el pedido simultáneamente.
+- **Evidencia:** Respaldado por las capturas `03-rabbitmq-exchange-bindings.png`, `04-rabbitmq-queues.png` y `06-logs-consumidores.png`.
+- **Conclusión técnica:** Si ambos servicios consumieran de una misma cola compartida, RabbitMQ balancearía los mensajes en modo round-robin (modelo *Competing Consumers*), provocando que un pedido solo fuera atendido por la cocina o por notificaciones, pero nunca por ambos.
 
-### Experimento 2: Cola de trabajo (Escalado de consumidores)
-- **Ejecución:** Se escala `cocina-service` a 2 réplicas (`min-replicas 2`, `max-replicas 2`) y se envían varios pedidos consecutivos.
-- **Observación:** En el panel de RabbitMQ, la cola `cocina.pedidos` registra 2 consumidores activos. Cada réplica toma pedidos alternados, repartiendo la carga de trabajo sin duplicar preparaciones.
-- **Evidencia requerida:**
-  ![Cola de Trabajo 2 Consumidores](capturas/07-experimento-cola-trabajo.png)
+### Experimento 2: Cola de trabajo (Escalado horizontal de consumidores)
+- **Configuración:** Escalado del microservicio `cocina-service` a 2 réplicas (`--min-replicas 2 --max-replicas 2`) conectadas a la misma cola `cocina.pedidos`.
+- **Resultado:** En el panel de RabbitMQ, la cola registra `Consumers: 2`. Al enviar una ráfaga de pedidos continuos, RabbitMQ distribuye los mensajes de manera alternada entre las dos réplicas disponibles.
+- **Conclusión técnica:** Demuestra el patrón de *Work Queues*: a diferencia del modelo pub/sub entre colas distintas, múltiples consumidores escuchando una misma cola compiten por los mensajes para balancear la carga de procesamiento sin duplicar tareas.
 
-### Experimento 3: Los mensajes esperan (Persistencia y desacoplamiento)
-- **Ejecución:** Se crea una cola de prueba `auditoria.pedidos` unida a `arepas.eventos` con binding `pedido.#` sin ningún consumidor conectado.
-- **Observación:** Tras enviar pedidos, los mensajes permanecen acumulados en estado `Ready` en la cola.
-- **Análisis:** Demuestra la tolerancia a fallos: si un servicio consumidor se desconecta o cae, los eventos no se pierden en la red sino que aguardan en el broker hasta que el consumidor vuelva a estar disponible.
-- **Evidencia requerida:**
-  ![Mensajes en cola sin consumidor](capturas/08-experimento-mensajes-esperan.png)
+### Experimento 3: Los mensajes esperan (Persistencia y desacoplamiento temporal)
+- **Configuración:** Creación de una cola durable `auditoria.pedidos` vinculada a `arepas.eventos` con la routing key `pedido.#`, sin registrar ningún microservicio consumidor que la escuche.
+- **Resultado:** Al emitir pedidos desde el gateway, el broker almacena los mensajes en la cola manteniéndolos en estado `Ready` y `Unacknowledged: 0`.
+- **Conclusión técnica:** Demuestra la tolerancia a fallos y el desacoplamiento temporal de la arquitectura dirigida por eventos. Si un consumidor se desconecta o cae (por ejemplo, durante un despliegue o falla de red), los eventos no se pierden ni bloquean al emisor; permanecen persistidos en el broker hasta que el consumidor se restablezca.
 
 ---
 
